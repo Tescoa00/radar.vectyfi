@@ -12,11 +12,15 @@ psycopg2-binary
 scikit-learn
 xgboost
 optuna
+matplotlib
+seaborn
 
 # Generative AI & NLP ("LLM Sniper" Pipeline)
-sentence-transformers
-ollama
+# sentence-transformers
+# ollama
 
 # Testing & Dev
 pytest
 jupyter
+ipdb
+jupyterlab
