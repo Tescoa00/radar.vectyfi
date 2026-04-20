@@ -5,8 +5,8 @@ uvicorn
 # Core Data Engineering & Database
 pandas
 numpy
-pgvector
-psycopg2-binary
+# pgvector
+# psycopg2-binary
 
 # Machine Learning & Statistics
 scikit-learn
