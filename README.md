@@ -8,7 +8,7 @@ We decoupled our architecture into two distinct layers: a highly responsive web 
 
 **Core Architecture & Data Engineering**
 
-* **Backend:** FastAPI (Python) for robust, high-performance API endpoints.
+* **Backend:** FastAPI (Python 3.14.3) for robust, high-performance API endpoints.
 * **Frontend:** React with a strict "Bio-Digital" design system.
 * **Database:** PostgreSQL, utilizing the pgvector extension for high-dimensional vector storage.
 * **Data Manipulation:** Pandas and NumPy for handling massive procurement datasets.
