@@ -47,3 +47,4 @@ secrets.toml
 # Complete to your desire
 # EU docs about the data set
 docs/
+.claude/
