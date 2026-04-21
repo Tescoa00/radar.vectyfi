@@ -76,5 +76,4 @@ AWARD_EST_VALUE_EURO
 Description: "Estimated CA value, in EUR, without VAT"
 .
 Why we use it: We explicitly chose this over the standard VALUE_EURO column. According to TED calculations, if the final value is missing, standard value fields are filled with the lowest received bid
-. Using the lowest bid leaks post-award information. However, as our final Information Gain metric proved, even this "safe" estimated field acts as a massive data leak in the CAN dataset: if a contract is not awarded, the buyer simply leaves the estimated award value entirely blank, allowing the model to achieve high accuracy just by checking if the value is missing
-.
+. Using the lowest bid leaks post-award information. However, as our final Information Gain metric proved, even this "safe" estimated field acts as a massive data leak in the CAN dataset: if a contract is not awarded, the buyer simply leaves the estimated award value entirely blank, 
