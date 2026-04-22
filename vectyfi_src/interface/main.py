@@ -20,8 +20,6 @@ CAT_FEATURES     = ['TOP_TYPE', 'ISO_COUNTRY_CODE', 'TYPE_OF_CONTRACT', 'CAE_TYP
 BINARY_FEATURES  = ['B_MULTIPLE_CAE', 'B_EU_FUNDS', 'B_GPA', 'B_FRA_AGREEMENT', 'B_ACCELERATED']
 NUMERIC_FEATURES = ['CRIT_PRICE_WEIGHT', 'LOTS_NUMBER', 'YEAR']
 
-raw_df = pd.read_csv(DATA_PATH, sep='\t', low_memory=False)
-
 def preprocess(df: pd.DataFrame):
     """Préprocesse le df et retourne X, y"""
     df = df.copy()
@@ -41,19 +39,19 @@ def preprocess(df: pd.DataFrame):
     y = df_model['target']
     return X, y
 
-def train(split_ratio: float = 0.2) -> float:
+def train(df: pd.DataFrame, split_ratio: float = 0.2) -> float:
     print(Fore.MAGENTA + "\n⭐️ Use case: train" + Style.RESET_ALL)
 
-    X, y = preprocess(raw_df)
+    X, y = preprocess(df)
 
     X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=split_ratio, random_state=RANDOM_STATE, stratify=y
-)
+        X, y, test_size=split_ratio, random_state=RANDOM_STATE, stratify=y
+    )
     model = XGBClassifier(
-    n_estimators=100, max_depth=4,
-    enable_categorical=True, tree_method='hist',
-    random_state=RANDOM_STATE, n_jobs=-1,
-)
+        n_estimators=100, max_depth=4,
+        enable_categorical=True, tree_method='hist',
+        random_state=RANDOM_STATE, n_jobs=-1,
+        )
     model.fit(X_train, y_train)
 
     model_auc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
@@ -76,12 +74,10 @@ def evaluate(X_test: pd.DataFrame, y_test: pd.Series) -> float:
     print("✅ evaluate() done \n")
     return score
 
-def pred(X_pred: pd.DataFrame = None) -> np.ndarray:
+def pred(X_pred: pd.DataFrame = None, raw_df: pd.DataFrame = None) -> np.ndarray:
     model = load_model()
-
     if X_pred is None:
         X_pred, _ = preprocess(raw_df.sample(1, random_state=None))
-
     y_pred = model.predict(X_pred)
     print("\n✅ prediction done: ", y_pred, "\n")
     return y_pred
@@ -100,6 +96,7 @@ def load_model():
     return model
 
 if __name__ == '__main__':
-    model_auc, X_test, y_test = train()
+    raw_df = pd.read_csv(DATA_PATH, sep='\t', low_memory=False)
+    model_auc, X_test, y_test = train(raw_df)
     evaluate(X_test, y_test)
-    pred()
+    pred(raw_df=raw_df)
