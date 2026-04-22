@@ -1,0 +1,22 @@
+# Web Shell & API Backend
+fastapi
+uvicorn
+
+# Core Data Engineering & Database
+pandas
+numpy
+pgvector
+psycopg2-binary
+
+# Machine Learning & Statistics
+scikit-learn
+xgboost
+optuna
+
+# Generative AI & NLP ("LLM Sniper" Pipeline)
+sentence-transformers
+ollama
+
+# Testing & Dev
+pytest
+jupyter
