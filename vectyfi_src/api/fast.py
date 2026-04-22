@@ -1,17 +1,32 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pickle
 import numpy as np
 import pandas as pd
 import random
+from pathlib import Path
+
+from vectyfi_src.interface.main import preprocess
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+MODEL_PATH = Path(__file__).parent / "model_test.pkl"
+
 try:
-    with open("model.pkl", "rb") as f:
+    with open(MODEL_PATH, "rb") as f:
         model = pickle.load(f)
+    print(f"✅ Model loaded from {MODEL_PATH}")
 except FileNotFoundError:
-    model = None
+    raise RuntimeError(f"model_test.pkl introuvable à {MODEL_PATH}")
 
 
 class TenderInput(BaseModel):
@@ -39,17 +54,23 @@ class TenderInput(BaseModel):
 def root():
     return {"message": "Vectyfi, Tender Prediction API!"}
 
+def prepare_input(data: dict) -> pd.DataFrame:
+    """Applique le même preprocessing que main.py sur un dict d'input"""
+    df = pd.DataFrame([data])
+    # preprocess() attend une colonne INFO_ON_NON_AWARD pour créer target
+    # on l'ajoute dummy puisqu'on n'en a pas besoin pour prédire
+    df['INFO_ON_NON_AWARD'] = 'awarded'
+    X, _ = preprocess(df)
+    return X
+
 @app.post("/predict")
 def predict(data: TenderInput):
     if model is None:
         return {"error": "Model not available yet"}
-    df = pd.DataFrame([data.model_dump()])
-    prediction = model.predict(df)
+    X = prepare_input(data.model_dump())
+    prediction = model.predict(X)
     return {"prediction": int(prediction[0])}
 
-
-# To launch server : uvicorn fast:app --reload
-# Request with http://localhost:8000/docs
 
 DUMMY_VALUES = {
     "B_MULTIPLE_CAE": ["Y", "N"], "B_EU_FUNDS": ["Y", "N"],
@@ -68,9 +89,9 @@ DUMMY_VALUES = {
 @app.get("/dummy/predict")
 def dummy_predict():
     dummy = {key: random.choice(values) for key, values in DUMMY_VALUES.items()}
-    df = pd.DataFrame([dummy])
-    prediction = model.predict(df)
-    proba = model.predict_proba(df)[0]
+    X = prepare_input(dummy)
+    prediction = model.predict(X)
+    proba = model.predict_proba(X)[0]
     return {
         "input": dummy,
         "accepted": bool(prediction[0]),

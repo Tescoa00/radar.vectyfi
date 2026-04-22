@@ -1,92 +1,105 @@
 import numpy as np
 import pandas as pd
-
+import pickle
 from pathlib import Path
 from colorama import Fore, Style
-from dateutil.parser import parse
+from sklearn.metrics import accuracy_score, roc_auc_score
+from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
 
+MODEL_PATH = Path("model_test.pkl")
+RANDOM_STATE = 42
+DATA_PATH = "/Users/basile/code/Tescoa00/raw_data/export_CAN_2023_2018_balanced_500k.tsv"
 
-def preprocess() -> None:
-    """
-    - Download raw data from csv
-    - Preprocess data (cleaning, feature engineering, etc.)
-    """
+FEATURES = [
+    'B_MULTIPLE_CAE', 'B_EU_FUNDS', 'LOTS_NUMBER', 'TOP_TYPE', 'YEAR',
+    'ISO_COUNTRY_CODE', 'TYPE_OF_CONTRACT', 'B_GPA', 'B_FRA_AGREEMENT',
+    'CRIT_PRICE_WEIGHT', 'CRIT_CODE', 'B_ACCELERATED', 'CAE_TYPE', 'MAIN_ACTIVITY'
+]
+CAT_FEATURES     = ['TOP_TYPE', 'ISO_COUNTRY_CODE', 'TYPE_OF_CONTRACT', 'CAE_TYPE', 'MAIN_ACTIVITY']
+BINARY_FEATURES  = ['B_MULTIPLE_CAE', 'B_EU_FUNDS', 'B_GPA', 'B_FRA_AGREEMENT', 'B_ACCELERATED']
+NUMERIC_FEATURES = ['CRIT_PRICE_WEIGHT', 'LOTS_NUMBER', 'YEAR']
 
-    print("✅ preprocess() done \n")
+raw_df = pd.read_csv(DATA_PATH, sep='\t', low_memory=False)
 
+def preprocess(df: pd.DataFrame):
+    """Préprocesse le df et retourne X, y"""
+    df = df.copy()
+    df['target'] = (df['INFO_ON_NON_AWARD'] == 'awarded').astype(int)
 
-def train(
-        split_ratio: float = 0.02,
-        learning_rate: float = 0.0005,
-        batch_size: int = 256,
-        patience: int = 2
-    ) -> float:
+    df_model = df[FEATURES + ['target']].copy()
 
-    """
-    - Download processed data from your BQ table (or from cache if it exists)
-    - Train on the preprocessed dataset (which should be ordered by date)
-    - Store training results and model weights
-    """
+    for col in CAT_FEATURES:
+        df_model[col] = df_model[col].fillna('missing').astype('category')
+    for col in BINARY_FEATURES:
+        df_model[col] = df_model[col].map({'Y': 1, 'N': 0}).fillna(0).astype(int)
+    df_model['CRIT_CODE'] = df_model['CRIT_CODE'].map({'L': 0, 'M': 1}).fillna(0).astype(int)
+    for col in NUMERIC_FEATURES:
+        df_model[col] = pd.to_numeric(df_model[col], errors='coerce').fillna(0)
 
+    X = df_model[FEATURES]
+    y = df_model['target']
+    return X, y
+
+def train(split_ratio: float = 0.2) -> float:
     print(Fore.MAGENTA + "\n⭐️ Use case: train" + Style.RESET_ALL)
-    print(Fore.BLUE + "\nLoading preprocessed validation data..." + Style.RESET_ALL)
 
+    X, y = preprocess(raw_df)
 
-    model = load_model()
+    X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=split_ratio, random_state=RANDOM_STATE, stratify=y
+)
+    model = XGBClassifier(
+    n_estimators=100, max_depth=4,
+    enable_categorical=True, tree_method='hist',
+    random_state=RANDOM_STATE, n_jobs=-1,
+)
+    model.fit(X_train, y_train)
 
-    if model is None:
-        model = initialize_model(input_shape=X_train_processed.shape[1:])
+    model_auc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
+    model_acc = accuracy_score(y_test, model.predict(X_test))
 
-    model = compile_model(model, learning_rate=learning_rate)
-    model, history = train_model(
-        model, X_train_processed, y_train,
-        batch_size=batch_size,
-        patience=patience,
-        validation_data=(X_val_processed, y_val)
-    )
+    # Évaluation
+    print(f'Model AUC:      {model_auc:.4f}')
+    print(f'Model Accuracy: {model_acc*100:.1f}%')
 
-    val_mae = np.min(history.history['val_mae'])
-
-    params = dict(
-        context="train",
-        training_set_size=DATA_SIZE,
-        row_count=len(X_train_processed),
-    )
-
-    # Save results on the hard drive using taxifare.ml_logic.registry
-    save_results(params=params, metrics=dict(mae=val_mae))
-
-    # Save model weight on the hard drive (and optionally on GCS too!)
-    save_model(model=model)
-
+    # Export du pickle
+    save_model(model)
 
     print("✅ train() done \n")
+    return model_auc, X_test, y_test
 
-    return val_mae
-
-
-
-def evaluate() -> float:
-    """
-    Evaluate the performance of the latest production model on processed data
-    """
-
+def evaluate(X_test: pd.DataFrame, y_test: pd.Series) -> float:
+    model = load_model()
+    score = model.score(X_test, y_test)
+    print(f"Score: {score:.2f}")
     print("✅ evaluate() done \n")
-
     return score
 
-
 def pred(X_pred: pd.DataFrame = None) -> np.ndarray:
-    """
-    Make a prediction using the latest trained model
-    """
+    model = load_model()
 
-    print("\n✅ prediction done: ", y_pred, y_pred.shape, "\n")
+    if X_pred is None:
+        X_pred, _ = preprocess(raw_df.sample(1, random_state=None))
+
+    y_pred = model.predict(X_pred)
+    print("\n✅ prediction done: ", y_pred, "\n")
     return y_pred
 
+def save_model(model) -> None:
+    with open(MODEL_PATH, "wb") as f:
+        pickle.dump(model, f)
+    print(f"✅ Model saved at {MODEL_PATH}")
+
+def load_model():
+    if not MODEL_PATH.exists():
+        return None
+    with open(MODEL_PATH, "rb") as f:
+        model = pickle.load(f)
+    print("✅ Model loaded")
+    return model
 
 if __name__ == '__main__':
-    preprocess()
-    train()
-    evaluate()
+    model_auc, X_test, y_test = train()
+    evaluate(X_test, y_test)
     pred()
