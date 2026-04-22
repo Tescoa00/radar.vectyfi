@@ -11,7 +11,7 @@ try:
     with open("model.pkl", "rb") as f:
         model = pickle.load(f)
 except FileNotFoundError:
-    raise RuntimeError("model.pkl not found")
+    model = None
 
 
 class TenderInput(BaseModel):
@@ -41,6 +41,8 @@ def root():
 
 @app.post("/predict")
 def predict(data: TenderInput):
+    if model is None:
+        return {"error": "Model not available yet"}
     df = pd.DataFrame([data.model_dump()])
     prediction = model.predict(df)
     return {"prediction": int(prediction[0])}
