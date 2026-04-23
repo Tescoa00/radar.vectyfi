@@ -20,3 +20,5 @@ ollama
 # Testing & Dev
 pytest
 jupyter
+setuptools
+colorama
