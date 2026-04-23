@@ -1,0 +1,9 @@
+# Softer requirements for API and deployment
+fastapi
+uvicorn
+colorama
+pandas
+numpy
+scikit-learn
+xgboost
+setuptools
