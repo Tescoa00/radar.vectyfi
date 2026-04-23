@@ -6,4 +6,4 @@ stop:
 	kill $(lsof -t -i:8000)
 
 api:
-	curl https://vectyfi-api-828368828432.europe-west1.run.app/docs
+	open https://vectyfi-api-828368828432.europe-west1.run.app/docs
