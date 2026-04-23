@@ -1,63 +1,88 @@
 import pandas as pd
+import time
+from sklearn.impute import SimpleImputer
+from sklearn.compose import make_column_transformer, make_column_selector
+from sklearn.pipeline import make_pipeline
 
-def clean_ted_data(input_filepath, output_filepath):
-    print("1. Loading raw TED data...")
+RANDOM_STATE = 42
+RAW_DATA_PATH='./raw_data/'
+
+def clean_ted_data(input_filepath, output_filepath=None):
+    print(f"1. Loading raw TED data '{input_filepath}'...")
     # low_memory=False prevents pandas warnings when dealing with mixed data types in massive CSVs
     df_raw = pd.read_csv(input_filepath, low_memory=False)
 
-    print("2. Deduplicating by ID_AWARD...")
-    # Essential to preserve the true market structure. The flat CSV format duplicates 
-    # overarching notice information for every single contract award [2].
-    df_unique = df_raw.drop_duplicates(subset=['ID_AWARD']).copy()
+    print("2. Creating balanced data set and shuffle...")
+    values = {'INFO_ON_NON_AWARD': 'awarded'}
+    df_raw_balanced = df_raw.fillna(value=values)
+    # create max data set, many rows will be removed in duplicate removal below
+    n_awarded      = 380_000
+    n_unsuccessful = 190_000
+    n_discontinued = 190_000
+    grp_awarded      = df_raw_balanced[df_raw_balanced["INFO_ON_NON_AWARD"] == "awarded"]
+    grp_unsuccessful = df_raw_balanced[df_raw_balanced["INFO_ON_NON_AWARD"] == "PROCUREMENT_UNSUCCESSFUL"]
+    grp_discontinued = df_raw_balanced[df_raw_balanced["INFO_ON_NON_AWARD"] == "PROCUREMENT_DISCONTINUED"]
+    df_raw_all_balanced = (
+        pd.concat([
+            grp_awarded.sample(n=n_awarded, random_state=RANDOM_STATE),
+            grp_unsuccessful.sample(n=n_unsuccessful, random_state=RANDOM_STATE),
+            grp_discontinued.sample(n=n_discontinued, random_state=RANDOM_STATE),
+            ])
+        .sample(frac=1, random_state=RANDOM_STATE)
+        .reset_index(drop=True)
+        )
 
-    print("3. Creating the Target Variable (TARGET_NOT_AWARDED)...")
-    # According to the TED codebook, INFO_ON_NON_AWARD is empty if the contract was awarded.
-    # It contains strings like 'PROCUREMENT_UNSUCCESSFUL' if it failed [3]. 
-    df_unique['TARGET_NOT_AWARDED'] = df_unique['INFO_ON_NON_AWARD'].notna().astype(int)
+    print("3. Deduplicating by ID_NOTICE_CAN...")
+    df_unique = df_raw_all_balanced.drop_duplicates(subset=['ID_NOTICE_CAN'], keep='first')
 
-    print("4. Balancing the Dataset (250k Awarded / 250k Failed)...")
-    df_awarded = df_unique[df_unique['TARGET_NOT_AWARDED'] == 0]
-    df_failed = df_unique[df_unique['TARGET_NOT_AWARDED'] == 1]
+    print("4. Selecting the 14 verified safe pre-award features + target...")
+    # TARGET_NOT_AWARDED: 1 = not awarded, 0 = awarded (inverted from 'awarded' label)
+    df_unique['TARGET_NOT_AWARDED'] = (df_unique['INFO_ON_NON_AWARD'] != 'awarded').astype(int)
 
-    # Random sampling across the entire multi-year pool to prevent geographical/temporal bias
-    df_awarded_sample = df_awarded.sample(n=250000, random_state=42)
-    df_failed_sample = df_failed.sample(n=250000, random_state=42)
-    
-    # Concatenate the balanced classes and shuffle them thoroughly (frac=1)
-    df_balanced = pd.concat([df_awarded_sample, df_failed_sample]).sample(frac=1, random_state=42).reset_index(drop=True)
-
-    print("5. Selecting the 14 verified safe pre-award features...")
-    columns_to_load = [
-        'ID_AWARD', 'INFO_ON_NON_AWARD', # We load these now but drop them at the very end
-        'B_MULTIPLE_CAE', 'B_EU_FUNDS', 'TOP_TYPE', 'ISO_COUNTRY_CODE', 
-        'B_FRA_AGREEMENT', 'B_GPA', 'YEAR', 'TYPE_OF_CONTRACT', 
-        'CAE_TYPE', 'CRIT_CODE', 'B_ACCELERATED', 'MAIN_ACTIVITY', 
+    columns_to_keep = [
+        'B_MULTIPLE_CAE', 'B_EU_FUNDS', 'TOP_TYPE', 'ISO_COUNTRY_CODE',
+        'B_FRA_AGREEMENT', 'B_GPA', 'YEAR', 'TYPE_OF_CONTRACT',
+        'CAE_TYPE', 'CRIT_CODE', 'B_ACCELERATED', 'MAIN_ACTIVITY',
         'CRIT_PRICE_WEIGHT', 'LOTS_NUMBER', 'TARGET_NOT_AWARDED'
     ]
-    
-    # Safely load only the columns that actually exist in the dataframe
-    existing_cols = [c for c in columns_to_load if c in df_balanced.columns]
-    df_ultimate = df_balanced[existing_cols].copy()
+    df_non_na = df_unique[columns_to_keep].copy()
 
-    print("6. Categorical Clean Up...")
-    # Fill missing country codes to prevent the One-Hot Encoder from crashing
-    if 'ISO_COUNTRY_CODE' in df_ultimate.columns:
-        df_ultimate['ISO_COUNTRY_CODE'] = df_ultimate['ISO_COUNTRY_CODE'].fillna('UNKNOWN')
+    print("5. Taking care of missing values...")
+    df_non_na['B_ACCELERATED'] = df_non_na['B_ACCELERATED'].fillna(0).replace('Y', 1)
+    # CRIT_PRICE_WEIGHT: strip " %", replace EU comma decimal, take first number
+    df_non_na['CRIT_PRICE_WEIGHT'] = (
+        df_non_na['CRIT_PRICE_WEIGHT']
+        .astype(str)
+        .str.replace(r'\s*%', '', regex=True)
+        .str.replace(',', '.', regex=False)
+        .str.extract(r'(\d+\.?\d*)')[0]
+        .pipe(pd.to_numeric, errors='coerce')
+        .fillna(0)
+    )
+    df_non_na['ISO_COUNTRY_CODE'] = df_non_na['ISO_COUNTRY_CODE'].fillna('UNKNOWN')
 
-    print("7. Dropping Identifiers to guarantee Zero Data Leakage...")
-    # ID_AWARD and INFO_ON_NON_AWARD must be deleted before machine learning.
-    # Keeping them would allow the model to cheat by looking directly at the award result [3].
-    cols_to_drop = ['ID_AWARD', 'INFO_ON_NON_AWARD']
-    existing_drops = [c for c in cols_to_drop if c in df_ultimate.columns]
-    df_ultimate = df_ultimate.drop(columns=existing_drops)
+    preproc_num = make_pipeline(SimpleImputer(strategy="mean"))
+    preproc_cat = make_pipeline(SimpleImputer(strategy="most_frequent"))
 
-    num_rows, num_cols = df_ultimate.shape
+    # Exclude target column from imputation
+    feature_cols = [c for c in columns_to_keep if c != 'TARGET_NOT_AWARDED']
+    preproc_transformer = make_column_transformer(
+        (preproc_num, make_column_selector(dtype_include=["number"])),
+        (preproc_cat, make_column_selector(dtype_include=["object"])),
+        remainder="passthrough"
+    ).set_output(transform="pandas")
+    df_out = preproc_transformer.fit_transform(df_non_na[feature_cols])
+    df_out['TARGET_NOT_AWARDED'] = df_non_na['TARGET_NOT_AWARDED']
+
+    num_rows, num_cols = df_out.shape
     print(f"\nFinal Dataset Shape: {num_rows} rows, {num_cols} columns.")
-    
-    df_ultimate.to_csv(output_filepath, index=False)
+
+    #TODO optional: timestamp = time.strftime("%Y%m%d-%H%M%S")
+    if output_filepath is None:
+        output_filepath = RAW_DATA_PATH + 'balanced_cleaned_' + str(round(num_rows, -3)).rstrip('0') + 'k.csv'
+    df_out.to_csv(output_filepath, index=False)
     print(f"Success! Cleaned data saved to: {output_filepath}")
 
 # Execute the script
 if __name__ == "__main__":
-    # Ensure you replace 'ted_raw_data.csv' with your actual input file name
-    clean_ted_data('/Users/edu/Edu/testproject/tenderpilot_data/data/export_CAN_2023_2018.csv','raw_data/f_balanced_500k.csv')
+    clean_ted_data(RAW_DATA_PATH + 'export_CAN_2023_2018.csv')
