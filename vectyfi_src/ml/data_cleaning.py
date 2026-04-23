@@ -64,8 +64,8 @@ def clean_ted_data(input_filepath, output_filepath=None):
 
     #TODO optional: timestamp = time.strftime("%Y%m%d-%H%M%S")
     if output_filepath is None:
-        output_filepath = RAW_DATA_PATH + 'balanced_cleaned_' + str(round(num_rows, -3)).rstrip('0') + 'k.csv'
-    df_non_na.to_csv(output_filepath, index=False)
+        output_filepath = RAW_DATA_PATH + 'balanced_cleaned_' + str(round(num_rows, -3)).rstrip('0') + 'k.tsv'
+    df_non_na.to_csv(output_filepath, index=False, sep="\t")
     print(f"Success! Cleaned data saved to: {output_filepath}")
 
 # Execute the script

@@ -83,7 +83,6 @@ def build_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
     pt_feat = [c for c in PASS_THROUGH_FEATURES if c in X.columns]
     ohe_feat = [c for c in OHE_FEATURES if c in X.columns]
     tgt_feat = [c for c in TARGET_ENC_FEATURES if c in X.columns]
-    breakpoint()
 
     # The ColumnTransformer applies the correct encoding rules to the correct columns simultaneously
     preprocessor = ColumnTransformer(
@@ -112,7 +111,7 @@ def build_pipeline(X: pd.DataFrame, xgb_params: dict | None = None) -> Pipeline:
 def run_ml_pipeline(input_filepath: str) -> None:
     """Load cleaned data, build pipeline, run 5-fold CV and print results."""
     print("1. Loading the balanced TED dataset...")
-    df = pd.read_csv(input_filepath, low_memory=False)
+    df = pd.read_csv(input_filepath, low_memory=False, sep='\t')
 
     print("2. Converting binary TED variables, train test split, and imputing missing values...")
     X_train, X_test, y_train, y_test = format_features(df) # X_test and y_test not used here
@@ -135,4 +134,4 @@ def run_ml_pipeline(input_filepath: str) -> None:
 
 # Execute the script
 if __name__ == "__main__":
-    run_ml_pipeline(RAW_DATA_PATH + 'balanced_cleaned_378k.csv')
+    run_ml_pipeline(RAW_DATA_PATH + 'balanced_cleaned_378k.tsv')
