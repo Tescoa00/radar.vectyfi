@@ -1,8 +1,5 @@
 import pandas as pd
-import time
-from sklearn.impute import SimpleImputer
-from sklearn.compose import make_column_transformer, make_column_selector
-from sklearn.pipeline import make_pipeline
+# import time
 
 RANDOM_STATE = 42
 RAW_DATA_PATH='./raw_data/'
@@ -47,7 +44,8 @@ def clean_ted_data(input_filepath, output_filepath=None):
     ]
     df_non_na = df_unique[columns_to_keep].copy()
 
-    print("5. Taking care of missing values...")
+    print("5. Taking care of some missing values...")
+    # missing value imputation done in preprocessing.py
     df_non_na['B_ACCELERATED'] = df_non_na['B_ACCELERATED'].fillna(0).replace('Y', 1)
     # CRIT_PRICE_WEIGHT: strip " %", replace EU comma decimal, take first number
     df_non_na['CRIT_PRICE_WEIGHT'] = (
@@ -61,26 +59,13 @@ def clean_ted_data(input_filepath, output_filepath=None):
     )
     df_non_na['ISO_COUNTRY_CODE'] = df_non_na['ISO_COUNTRY_CODE'].fillna('UNKNOWN')
 
-    preproc_num = make_pipeline(SimpleImputer(strategy="mean"))
-    preproc_cat = make_pipeline(SimpleImputer(strategy="most_frequent"))
-
-    # Exclude target column from imputation
-    feature_cols = [c for c in columns_to_keep if c != 'TARGET_NOT_AWARDED']
-    preproc_transformer = make_column_transformer(
-        (preproc_num, make_column_selector(dtype_include=["number"])),
-        (preproc_cat, make_column_selector(dtype_include=["object"])),
-        remainder="passthrough"
-    ).set_output(transform="pandas")
-    df_out = preproc_transformer.fit_transform(df_non_na[feature_cols])
-    df_out['TARGET_NOT_AWARDED'] = df_non_na['TARGET_NOT_AWARDED']
-
-    num_rows, num_cols = df_out.shape
+    num_rows, num_cols = df_non_na.shape
     print(f"\nFinal Dataset Shape: {num_rows} rows, {num_cols} columns.")
 
     #TODO optional: timestamp = time.strftime("%Y%m%d-%H%M%S")
     if output_filepath is None:
         output_filepath = RAW_DATA_PATH + 'balanced_cleaned_' + str(round(num_rows, -3)).rstrip('0') + 'k.csv'
-    df_out.to_csv(output_filepath, index=False)
+    df_non_na.to_csv(output_filepath, index=False)
     print(f"Success! Cleaned data saved to: {output_filepath}")
 
 # Execute the script

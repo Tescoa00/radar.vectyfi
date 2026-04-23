@@ -31,7 +31,6 @@ import pandas as pd
 import pickle
 from pathlib import Path
 from sklearn.metrics import accuracy_score, roc_auc_score
-from sklearn.model_selection import train_test_split
 
 # ── Import our own modules ─────────────────────────────────────────────────
 from vectyfi_src.ml.data_cleaning import clean_ted_data
@@ -59,15 +58,13 @@ def clean(raw_path: str = RAW_DATA_PATH, clean_path: str = CLEAN_DATA_PATH) -> p
     return df
 
 
-def preprocess(df: pd.DataFrame):
+def preprocess(df: pd.DataFrame, split_ratio: float = 0.2):
     """Format features and split into X, y."""
-    df = format_features(df)
-    X = df.drop(columns=['TARGET_NOT_AWARDED'])
-    y = df['TARGET_NOT_AWARDED']
-    return X, y
+    X_train, X_test, y_train, y_test = format_features(df, split_ratio)
+    return X_train, X_test, y_train, y_test
 
 
-def train(df: pd.DataFrame, split_ratio: float = 0.2, save: bool = True):
+def train(df: pd.DataFrame, save: bool = True):
     """
     Preprocess, train an XGBoost pipeline, evaluate, and optionally save.
 
@@ -79,11 +76,7 @@ def train(df: pd.DataFrame, split_ratio: float = 0.2, save: bool = True):
     """
     print("\n⭐️ Use case: train")
 
-    X, y = preprocess(df)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=split_ratio, random_state=RANDOM_STATE, stratify=y,
-    )
+    X_train, X_test, y_train, y_test = preprocess(df)
 
     # Build the full sklearn Pipeline (ColumnTransformer + XGBClassifier)
     pipeline = build_pipeline(X_train)
