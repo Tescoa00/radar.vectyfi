@@ -68,6 +68,8 @@ def clean_ted_data(input_filepath, output_filepath=None):
     df_non_na.to_csv(output_filepath, index=False, sep="\t")
     print(f"Success! Cleaned data saved to: {output_filepath}")
 
+    return df_non_na
+
 # Execute the script
 if __name__ == "__main__":
     clean_ted_data(RAW_DATA_PATH + 'export_CAN_2023_2018.csv')
