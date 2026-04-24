@@ -19,11 +19,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL_PATH = Path(__file__).parent / "model_test.pkl"
+MODEL_PATH = Path(__file__).parent.parent.parent / "ml" / "model.pkl"
 
 try:
     with open(MODEL_PATH, "rb") as f:
-        model = pickle.load(f)
+        loaded = pickle.load(f)
+    model = loaded['model'] if isinstance(loaded, dict) else loaded
     print(f"✅ Model loaded from {MODEL_PATH}")
 except FileNotFoundError:
     raise RuntimeError(f"model_test.pkl introuvable à {MODEL_PATH}")

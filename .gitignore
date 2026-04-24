@@ -44,6 +44,8 @@ secrets.toml
 *.json
 
 # User defined extras
-# Complete to your desire.claude/
+# Complete to your desire
+# EU docs about the data set
+docs/
 .claude/
-.claude
+docs/

@@ -1,102 +1,176 @@
+"""
+Vectyfi Radar — ML Pipeline Entry Point
 import numpy as np
 import pandas as pd
 import pickle
 from pathlib import Path
-from colorama import Fore, Style
-from sklearn.metrics import accuracy_score, roc_auc_score
-from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, roc_auc_score
 
+# ── Import our own modules ─────────────────────────────────────────────────
+from vectyfi_src.ml.data_cleaning import clean_ted_data
+from vectyfi_src.ml.preprocessing import format_features, build_pipeline
+
+# ── Config ──────────────────────────────────────────────────────────────────
 MODEL_PATH = Path("model_test.pkl")
 RANDOM_STATE = 42
-DATA_PATH = "/Users/basile/code/Tescoa00/raw_data/export_CAN_2023_2018_balanced_500k.tsv"
 
-FEATURES = [
-    'B_MULTIPLE_CAE', 'B_EU_FUNDS', 'LOTS_NUMBER', 'TOP_TYPE', 'YEAR',
-    'ISO_COUNTRY_CODE', 'TYPE_OF_CONTRACT', 'B_GPA', 'B_FRA_AGREEMENT',
-    'CRIT_PRICE_WEIGHT', 'CRIT_CODE', 'B_ACCELERATED', 'CAE_TYPE', 'MAIN_ACTIVITY'
-]
-CAT_FEATURES     = ['TOP_TYPE', 'ISO_COUNTRY_CODE', 'TYPE_OF_CONTRACT', 'CAE_TYPE', 'MAIN_ACTIVITY']
-BINARY_FEATURES  = ['B_MULTIPLE_CAE', 'B_EU_FUNDS', 'B_GPA', 'B_FRA_AGREEMENT', 'B_ACCELERATED']
-NUMERIC_FEATURES = ['CRIT_PRICE_WEIGHT', 'LOTS_NUMBER', 'YEAR']
+# Raw input → cleaned output
+RAW_DATA_PATH = "raw_data/export_CAN_2023_2018.csv"
+CLEAN_DATA_PATH = "raw_data/balanced_cleaned_378k.tsv"
+
+
+# ── Pipeline Steps ──────────────────────────────────────────────────────────
+
+def clean(raw_path: str = RAW_DATA_PATH, clean_path: str = CLEAN_DATA_PATH) -> pd.DataFrame:
+    """Run the full data-cleaning pipeline and return the clean dataframe."""
+    print("\n⭐️ Use case: clean")
+
+    if Path(clean_path).exists():
+        df = pd.read_csv(clean_path, low_memory=False, sep="\t")
+        print(f"✅ clean data set '{clean_path}' loaded\n")
+    else:
+        df = clean_ted_data(raw_path, clean_path)
+        print("✅ clean() done\n")
+
+    return df
+
 
 def preprocess(df: pd.DataFrame):
-    """Préprocesse le df et retourne X, y"""
-    df = df.copy()
-    df['target'] = (df['INFO_ON_NON_AWARD'] == 'awarded').astype(int)
-
-    df_model = df[FEATURES + ['target']].copy()
-
-    for col in CAT_FEATURES:
-        df_model[col] = df_model[col].fillna('missing').astype('category')
-    for col in BINARY_FEATURES:
-        df_model[col] = df_model[col].map({'Y': 1, 'N': 0}).fillna(0).astype(int)
-    df_model['CRIT_CODE'] = df_model['CRIT_CODE'].map({'L': 0, 'M': 1}).fillna(0).astype(int)
-    for col in NUMERIC_FEATURES:
-        df_model[col] = pd.to_numeric(df_model[col], errors='coerce').fillna(0)
-
-    X = df_model[FEATURES]
-    y = df_model['target']
+    """Format features and split into X, y."""
+    df = format_features(df)
+    # with new data, there's no target 'TARGET_NOT_AWARDED' column
+    X = df.drop(columns=['TARGET_NOT_AWARDED'], errors='ignore')
+    y = df['TARGET_NOT_AWARDED'] if 'TARGET_NOT_AWARDED' in df.columns else None
     return X, y
 
-def train(df: pd.DataFrame, split_ratio: float = 0.2) -> float:
-    print(Fore.MAGENTA + "\n⭐️ Use case: train" + Style.RESET_ALL)
+
+def train(df: pd.DataFrame, split_ratio: float = 0.2, save: bool = True):
+    """
+    Preprocess, train an XGBoost pipeline, evaluate, and optionally save.
+
+    Args:
+        df:          The cleaned, balanced dataframe.
+        split_ratio: Fraction of data reserved for the test set (default 20%).
+        save:        If True, export the trained pipeline to MODEL_PATH as .pkl.
+                     Set to False (--no-save) to skip persistence.
+    """
+    print("\n⭐️ Use case: train")
 
     X, y = preprocess(df)
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=split_ratio, random_state=RANDOM_STATE, stratify=y
-    )
-    model = XGBClassifier(
-        n_estimators=100, max_depth=4,
-        enable_categorical=True, tree_method='hist',
-        random_state=RANDOM_STATE, n_jobs=-1,
         )
-    model.fit(X_train, y_train)
 
-    model_auc = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
-    model_acc = accuracy_score(y_test, model.predict(X_test))
+    # Build the full sklearn Pipeline (ColumnTransformer + XGBClassifier)
+    pipeline = build_pipeline(X_train)
+    pipeline.fit(X_train, y_train)
 
-    # Évaluation
-    print(f'Model AUC:      {model_auc:.4f}')
-    print(f'Model Accuracy: {model_acc*100:.1f}%')
+    # Evaluation
+    model_auc = roc_auc_score(y_test, pipeline.predict_proba(X_test)[:, 1])
+    model_acc = accuracy_score(y_test, pipeline.predict(X_test))
 
-    # Export du pickle
-    save_model(model)
+    print(f"Model AUC:      {model_auc:.4f}")
+    print(f"Model Accuracy: {model_acc*100:.1f}%")
 
-    print("✅ train() done \n")
+    # Conditionally save the pipeline pickle
+    if save:
+        save_model(pipeline)
+    else:
+        print("⏭️  --no-save flag: skipping .pkl export")
+
+    print("✅ train() done\n")
     return model_auc, X_test, y_test
 
+
 def evaluate(X_test: pd.DataFrame, y_test: pd.Series) -> float:
+    """Load the saved model and score it on a test set."""
+    print("\n⭐️ Use case: evaluate")
     model = load_model()
+    if model is None:
+        print("⚠️  No saved model found — run without --no-save first.")
+        return 0.0
     score = model.score(X_test, y_test)
     print(f"Score: {score:.2f}")
-    print("✅ evaluate() done \n")
+    print("✅ evaluate() done\n")
     return score
 
+
 def pred(X_pred: pd.DataFrame = None, raw_df: pd.DataFrame = None) -> np.ndarray:
+    """Make a prediction using the saved model."""
+    print("\n⭐️ Use case: pred")
     model = load_model()
+    if model is None:
+        print("⚠️  No saved model found — run without --no-save first.")
+        return np.array([])
     if X_pred is None:
-        X_pred, _ = preprocess(raw_df.sample(1, random_state=None))
+        X_pred = raw_df.sample(1, random_state=None)
+    X_pred, _ = preprocess(X_pred)
     y_pred = model.predict(X_pred)
     print("\n✅ prediction done: ", y_pred, "\n")
     return y_pred
 
+
+# ── Model I/O ───────────────────────────────────────────────────────────────
+
 def save_model(model) -> None:
+    """Serialize the full sklearn Pipeline (preprocessor + XGBClassifier) to disk."""
     with open(MODEL_PATH, "wb") as f:
         pickle.dump(model, f)
-    print(f"✅ Model saved at {MODEL_PATH}")
+    print(f"✅ Model saved at {str(MODEL_PATH)}")
+
 
 def load_model():
+    """Load and return the Pipeline from MODEL_PATH, or None if missing."""
     if not MODEL_PATH.exists():
         return None
     with open(MODEL_PATH, "rb") as f:
         model = pickle.load(f)
-    print("✅ Model loaded")
+    print(f"✅ Model loaded {str(MODEL_PATH)}")
     return model
 
-if __name__ == '__main__':
-    raw_df = pd.read_csv(DATA_PATH, sep='\t', low_memory=False)
-    model_auc, X_test, y_test = train(raw_df)
-    evaluate(X_test, y_test)
-    pred(raw_df=raw_df)
+
+# ── CLI Entry Point ─────────────────────────────────────────────────────────
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Vectyfi Radar — ML training pipeline",
+    )
+    parser.add_argument(
+        "--skip-clean",
+        action="store_true",
+        help="Skip data cleaning; load existing balanced CSV instead.",
+    )
+    parser.add_argument(
+        "--no-save",
+        action="store_true",
+        help="Do not export the trained pipeline to a .pkl file.",
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+
+    # ── Step 1: Data Cleaning ───────────────────────────────────────────
+    # --skip-clean → load the existing balanced CSV directly
+    # (default)   → re-run the full cleaning pipeline from raw data
+    if args.skip_clean:
+        print("\n⏭️  --skip-clean: loading existing balanced CSV...")
+        df = pd.read_csv(CLEAN_DATA_PATH, low_memory=False, sep="\t")
+    else:
+        df = clean()
+
+    # ── Step 2: Train ───────────────────────────────────────────────────
+    # --no-save → train & evaluate but don't write model_test.pkl
+    model_auc, X_test, y_test = train(df, save=not args.no_save)
+
+    # ── Step 3: Evaluate ────────────────────────────────────────────────
+    # Only meaningful if a .pkl was saved (or already existed)
+    if not args.no_save:
+        evaluate(X_test, y_test)
+
+    # ── Step 4: Predict on a random row ─────────────────────────────────
+    if not args.no_save:
+        pred(raw_df=df)
