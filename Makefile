@@ -4,3 +4,12 @@ api:
 
 stop:
 	kill $(lsof -t -i:8000)
+<<<<<<< Updated upstream
+=======
+
+api:
+	open https://vectyfi-api-828368828432.europe-west1.run.app/docs
+
+streamlit:
+	-@streamlit run vectyfi_src/frontend/app.py
+>>>>>>> Stashed changes

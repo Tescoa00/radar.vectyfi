@@ -20,5 +20,13 @@ ollama
 # Testing & Dev
 pytest
 jupyter
+<<<<<<< Updated upstream
 setuptools
 colorama
+=======
+ipdb
+jupyterlab
+
+#Frontend
+streamlit
+>>>>>>> Stashed changes
