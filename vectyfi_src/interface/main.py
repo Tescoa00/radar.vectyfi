@@ -1,5 +1,31 @@
 """
 Vectyfi Radar — ML Pipeline Entry Point
+========================================
+
+Usage:
+    # Full pipeline: clean raw data → train → evaluate → predict
+    python -m vectyfi_src.interface.main
+
+    # Skip cleaning — reuse the existing balanced CSV (much faster)
+    python -m vectyfi_src.interface.main --skip-clean
+
+    # Train only (no .pkl saved to disk)
+    python -m vectyfi_src.interface.main --skip-clean --no-save
+
+    # Combine flags freely
+    python -m vectyfi_src.interface.main --skip-clean --no-save
+
+Flags:
+    --skip-clean   Skip the data-cleaning step and load the existing
+                   balanced CSV from CLEAN_DATA_PATH directly.
+                   Use this when raw_data/balanced_cleaned_378k.tsv already exists.
+
+    --no-save      Do NOT export the trained pipeline to a .pkl file.
+                   Useful for quick experiments where you don't need
+                   a persistent model artifact.
+"""
+
+import argparse
 import numpy as np
 import pandas as pd
 import pickle
