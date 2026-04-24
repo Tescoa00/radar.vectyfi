@@ -48,4 +48,4 @@ secrets.toml
 # EU docs about the data set
 docs/
 .claude/
-.claude
+docs/
