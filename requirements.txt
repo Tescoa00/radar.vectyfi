@@ -5,18 +5,22 @@ uvicorn
 # Core Data Engineering & Database
 pandas
 numpy
-pgvector
-psycopg2-binary
+# pgvector
+# psycopg2-binary
 
 # Machine Learning & Statistics
 scikit-learn
 xgboost
 optuna
+matplotlib
+seaborn
 
 # Generative AI & NLP ("LLM Sniper" Pipeline)
-sentence-transformers
-ollama
+# sentence-transformers
+# ollama
 
 # Testing & Dev
 pytest
 jupyter
+ipdb
+jupyterlab

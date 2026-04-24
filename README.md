@@ -1,7 +1,7 @@
 # 🦅 Vectyfi Radar: Predictive Procurement Intelligence
 Vectyfi Radar is a data-driven B2B SaaS engine designed to solve the procurement haystack problem. EU public procurement generates over 3.6GB of unstructured data across 9.5M+ XML/CSV records. This repository houses Project Zero: the core Machine Learning engine built to parse, clustering, and evaluate these records.
 
-By combining rigorous statistical inference, unsupervised micro-market clustering, and local LLM semantic extraction, this engine predicts contract award probabilities to identify high-value "Golden Leads" for mid-sized enterprises.
+By combining rigorous statistical inference, unsupervised micro-market clustering, and local LLM semantic extraction, this engine predicts contract award probabilities to identify high-value "Golden Leads" for mid-sized/small and medium enterprises enterprises (SME).
 
 ## 🛠️ The Tech Stack
 We decoupled our architecture into two distinct layers: a highly responsive web shell and a mathematically rigorous, locally executed Machine Learning backend.
