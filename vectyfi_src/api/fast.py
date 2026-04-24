@@ -80,12 +80,19 @@ def prepare_input(data: dict) -> pd.DataFrame:
 def root():
     return {"message": "Vectyfi, Tender Prediction API!"}
 
+#input from user
 @app.post("/predict")
 def predict(data: TenderInput):
     X = prepare_input(data.model_dump())
     prediction = model.predict(X)
-    return {"prediction": int(prediction[0])}
+    proba = model.predict_proba(X)[0]
+    return {
+        "input": data.model_dump(),
+        "accepted": bool(prediction[0]),
+        "confidence": round(float(max(proba)), 2)
+    }
 
+#input random for testing
 @app.get("/dummy/predict")
 def dummy_predict():
     dummy = {key: random.choice(values) for key, values in DUMMY_VALUES.items()}

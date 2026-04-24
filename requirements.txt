@@ -24,3 +24,10 @@ pytest
 jupyter
 ipdb
 jupyterlab
+
+#Frontend
+streamlit
+=======
+ipdb
+jupyterlab
+
