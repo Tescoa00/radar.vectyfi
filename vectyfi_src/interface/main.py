@@ -38,7 +38,7 @@ from vectyfi_src.ml.data_cleaning import clean_ted_data
 from vectyfi_src.ml.preprocessing import format_features, build_pipeline
 
 # ── Config ──────────────────────────────────────────────────────────────────
-MODEL_PATH = Path("model_test.pkl")
+MODEL_PATH = Path("ml/model_main.pkl")
 RANDOM_STATE = 42
 
 # Raw input → cleaned output

@@ -64,7 +64,7 @@ def build_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
                        TargetEncoder()),
          tgt_cols),
         remainder='drop'
-        )
+        ).set_output(transform="pandas") # added newly for the SHAP analysis
 
     return preprocessor
 

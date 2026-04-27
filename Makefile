@@ -1,4 +1,4 @@
-api local:
+api_local:
 	uvicorn vectyfi_src.api.fast:app &
 	sleep 2 && open http://localhost:8000/docs
 

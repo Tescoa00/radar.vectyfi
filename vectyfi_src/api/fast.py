@@ -8,6 +8,7 @@ import random
 from pathlib import Path
 
 from vectyfi_src.interface.main import preprocess
+from vectyfi_src.ml.explainer import build_explainer, explain_instance
 
 app = FastAPI()
 
@@ -19,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL_PATH = Path(__file__).parent.parent.parent / "ml" / "model.pkl"
+MODEL_PATH = Path(__file__).parent.parent.parent / "ml" / "model_main.pkl"
 
 try:
     with open(MODEL_PATH, "rb") as f:
@@ -28,6 +29,9 @@ try:
     print(f"✅ Model loaded from {MODEL_PATH}")
 except FileNotFoundError:
     raise RuntimeError(f"model_test.pkl introuvable à {MODEL_PATH}")
+
+explainer = build_explainer(model)
+preprocessor = model[0]
 
 DUMMY_VALUES = {
     "B_MULTIPLE_CAE": ["Y", "N"], "B_EU_FUNDS": ["Y", "N"],
@@ -90,6 +94,19 @@ def predict(data: TenderInput):
         "input": data.model_dump(),
         "accepted": bool(prediction[0]),
         "confidence": round(float(max(proba)), 2)
+    }
+
+@app.post("/explain")
+def explain(data: TenderInput):
+    X = prepare_input(data.model_dump())
+    prediction = model.predict(X)
+    proba = model.predict_proba(X)[0]
+    explanation = explain_instance(explainer, preprocessor, X)
+    return {
+        "input": data.model_dump(),
+        "accepted": bool(prediction[0]),
+        "confidence": round(float(max(proba)), 2),
+        **explanation
     }
 
 #input random for testing
