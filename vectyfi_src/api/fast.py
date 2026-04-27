@@ -37,7 +37,7 @@ DUMMY_VALUES = {
     "B_MULTIPLE_CAE": ["Y", "N"], "B_EU_FUNDS": ["Y", "N"],
     "B_GPA": ["Y", "N"], "B_FRA_AGREEMENT": ["Y", "N"], "B_ACCELERATED": ["Y", "N"],
     "LOTS_NUMBER": [1.0, 3.0, 5.0, 10.0],
-    "YEAR": [2018.0, 2019.0, 2020.0, 2021.0, 2022.0],
+    "YEAR": [2018, 2019, 2020, 2021, 2022, 2023, 2024],
     "CRIT_PRICE_WEIGHT": [0.0, 30.0, 50.0, 60.0, 80.0],
     "CRIT_CODE": [0.0, 1.0],
     "TOP_TYPE": ["OPE", "AWP", "NIC", "RES", "NOP", "NOC", "NIP", "COD", "INP"],
@@ -62,7 +62,7 @@ class TenderInput(BaseModel):
 
     # Numerical
     LOTS_NUMBER:       float
-    YEAR:              float
+    YEAR:              int
     CRIT_PRICE_WEIGHT: float
     CRIT_CODE:         float
 
