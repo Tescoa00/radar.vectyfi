@@ -27,7 +27,3 @@ jupyterlab
 
 #Frontend
 streamlit
-=======
-ipdb
-jupyterlab
-
