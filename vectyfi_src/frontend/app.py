@@ -66,7 +66,7 @@ st.subheader("Numerical fields")
 col3, col4 = st.columns(2)
 with col3:
     lots_number       = st.number_input("Lots Number",       value=inp["LOTS_NUMBER"],       min_value=1.0)
-    year              = st.number_input("Year",              value=int(inp["YEAR"]),              min_value=2000.0, max_value=2030.0, step=1.0)
+    year              = st.number_input("Year",              value=int(inp["YEAR"]),         min_value=2000, max_value=2030, step=1)
 with col4:
     crit_price_weight = st.number_input("Crit Price Weight", value=inp["CRIT_PRICE_WEIGHT"], min_value=0.0, max_value=100.0)
     crit_code         = st.number_input("Crit Code",         value=inp["CRIT_CODE"],         min_value=1.0)
