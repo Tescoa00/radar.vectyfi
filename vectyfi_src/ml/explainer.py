@@ -4,11 +4,11 @@ import shap
 from sklearn.pipeline import Pipeline
 
 
-def build_explainer(pipeline: Pipeline) -> shap.Explainer:
-    """Build a SHAP TreeExplainer from the XGBClassifier inside the pipeline.
-    Call once at startup — not per request.
+def build_explainer(pipeline) -> shap.Explainer:
+    """Build a SHAP TreeExplainer from the XGBClassifier.
+    Handles both a Pipeline and a bare XGBClassifier.
     """
-    xgb_model = pipeline[-1]
+    xgb_model = pipeline[-1] if isinstance(pipeline, Pipeline) else pipeline
     return shap.Explainer(xgb_model)
 
 

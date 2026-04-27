@@ -1,5 +1,5 @@
 api_local:
-	uvicorn vectyfi_src.api.fast:app &
+	uvicorn vectyfi_src.api.fast:app --reload &
 	sleep 2 && open http://localhost:8000/docs
 
 stop:
@@ -8,8 +8,10 @@ stop:
 api:
 	open https://vectyfi-api-828368828432.europe-west1.run.app/docs
 
-local streamlit:
+local:
 	-@streamlit run vectyfi_src/frontend/app.py
 
 app:
 	open https://radarvectyfi-tenderpredicter.streamlit.app/
+
+test local:

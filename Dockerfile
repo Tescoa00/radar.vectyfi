@@ -2,6 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+COPY ml/ ml/
 COPY vectyfi_src/ vectyfi_src/
 COPY requirements-api.txt requirements-api.txt
 COPY setup.py setup.py

@@ -1,20 +1,24 @@
 import streamlit as st
 import requests
 import random
+import streamlit.components.v1 as components
 
-# ── Configuration de la page ──────────────────────────────────────────────────
+
+
 st.set_page_config(page_title="Vectyfi · Tender Prediction", layout="centered")
 
-API_URL = "https://vectyfi-api-828368828432.europe-west1.run.app/predict"
+API_URL = "https://vectyfi-api-828368828432.europe-west1.run.app"
 
-# ── Valeurs possibles pour les champs catégoriels ────────────────────────────
-TOP_TYPES        = ["OPEN", "RESTRICTED", "NEGOTIATED", "OTHER"]
+TOP_TYPES       = ["OPE", "AWP", "NIC", "RES", "NOP", "NOC", "NIP", "COD", "INP"]
 COUNTRIES        = ["FR", "DE", "IT", "ES", "BE", "NL", "PL", "PT", "SE", "AT"]
-CONTRACT_TYPES   = ["WORKS", "SUPPLIES", "SERVICES"]
+CONTRACT_TYPES  = ["U", "S", "W"]
 CAE_TYPES        = ["OTH", "RA", "LA", "PUB", "DEF", "CGA", "HEA", "EU", "REG"]
-MAIN_ACTIVITIES  = ["COSAL", "HEALTH", "DEFENCE", "EDUCATION", "RCREA", "HOUCOM",
-                    "ENVIR", "ECONEC", "SEWAGE", "GENECO", "RAILSV", "AIRPORT",
-                    "PORTFA", "GASELE", "HEATCO", "WATER", "OTHER"]
+MAIN_ACTIVITIES = [
+    "Health", "Defence", "Railway services", "Other",
+    "General public\\services", "Education", "Environment",
+    "Urban railway, tramway, trolleybus or bus services",
+    "Housing and community amenities", "Recreation, culture and religion"
+]
 
 # ── Données aléatoires pour le bouton "Random" ───────────────────────────────
 def random_input():
@@ -102,9 +106,9 @@ if st.button("🚀 Predict", type="primary"):
         "MAIN_ACTIVITY":     main_activity,
     }
 
-    with st.spinner("Appel à l'API..."):
+    with st.spinner("Calling API..."):
         try:
-            response = requests.post(API_URL, json=payload, timeout=60)
+            response = requests.post(f"{API_URL}/predict", json=payload, timeout=60)
             response.raise_for_status()             # lève une exception si status != 200
             result = response.json()                # parse le JSON retourné
 
@@ -139,7 +143,29 @@ if st.button("🚀 Predict", type="primary"):
                 with col_b:
                     st.metric("Lots",     int(result["input"]["LOTS_NUMBER"]))
                     st.metric("Poids prix", f"{result['input']['CRIT_PRICE_WEIGHT']}%")
-                    st.metric("Activité", result["input"]["MAIN_ACTIVITY"])                         # affiche la réponse complète
+                    st.metric("Activité", result["input"]["MAIN_ACTIVITY"])
+
+            with st.expander("🔍 SHAP Explanation"):
+                force_html = result.get("force_plot_html")
+                if force_html:
+                    # Wrap in white background so SHAP plot is readable on dark theme
+                    st.markdown("""
+                    **How to read this chart:**
+                    - The **base value** is the model's average prediction across all training data
+                    - 🔴 **Red arrows** push the prediction **higher** (towards accepted)
+                    - 🔵 **Blue arrows** push the prediction **lower** (towards rejected)
+                    - The longer the arrow, the stronger the feature's impact
+                    - The final score (right side) is the model's output for this tender
+                    """)
+                    st.divider()
+                    wrapped = f"""
+                    <div style="background-color: white; padding: 20px; border-radius: 8px;">
+                        {force_html}
+                    </div>
+                    """
+                    components.html(wrapped, height=350, scrolling=True)
+                else:
+                    st.warning("No SHAP explanation available.")
 
         except requests.exceptions.Timeout:
             st.error("⏱️ Timeout — the API is not responding.")
