@@ -41,10 +41,10 @@ if "inputs" not in st.session_state:
 
 # ── Titre ─────────────────────────────────────────────────────────────────────
 st.title("Vectyfi — Tender Prediction")
-st.caption("Remplis les champs ou génère des données aléatoires, puis appelle l'API.")
+st.caption("Fill in the fields or generate random data, then call the API.")
 
 # ── Bouton Random ─────────────────────────────────────────────────────────────
-if st.button("🎲 Générer des données aléatoires"):
+if st.button("🎲 Generate Random Data"):
     st.session_state.inputs = random_input()
 
 st.divider()
@@ -52,7 +52,7 @@ st.divider()
 # ── Formulaire ────────────────────────────────────────────────────────────────
 inp = st.session_state.inputs
 
-st.subheader("Champs binaires")
+st.subheader("Binary fields")
 col1, col2 = st.columns(2)
 with col1:
     b_multiple_cae  = st.selectbox("Multiple CAE",  ["Y", "N"], index=["Y","N"].index(inp["B_MULTIPLE_CAE"]))
@@ -62,7 +62,7 @@ with col2:
     b_fra_agreement = st.selectbox("FRA Agreement", ["Y", "N"], index=["Y","N"].index(inp["B_FRA_AGREEMENT"]))
     b_accelerated   = st.selectbox("Accelerated",   ["Y", "N"], index=["Y","N"].index(inp["B_ACCELERATED"]))
 
-st.subheader("Champs numériques")
+st.subheader("Numerical fields")
 col3, col4 = st.columns(2)
 with col3:
     lots_number       = st.number_input("Lots Number",       value=inp["LOTS_NUMBER"],       min_value=1.0)
@@ -71,7 +71,7 @@ with col4:
     crit_price_weight = st.number_input("Crit Price Weight", value=inp["CRIT_PRICE_WEIGHT"], min_value=0.0, max_value=100.0)
     crit_code         = st.number_input("Crit Code",         value=inp["CRIT_CODE"],         min_value=1.0)
 
-st.subheader("Champs catégoriels")
+st.subheader("Categorical fields")
 col5, col6 = st.columns(2)
 with col5:
     top_type         = st.selectbox("Top Type",          TOP_TYPES,       index=TOP_TYPES.index(inp["TOP_TYPE"]))
@@ -84,7 +84,7 @@ with col6:
 st.divider()
 
 # ── Appel API ─────────────────────────────────────────────────────────────────
-if st.button("🚀 Prédire", type="primary"):
+if st.button("🚀 Predict", type="primary"):
     payload = {
         "B_MULTIPLE_CAE":  b_multiple_cae,
         "B_EU_FUNDS":      b_eu_funds,
@@ -113,24 +113,24 @@ if st.button("🚀 Prédire", type="primary"):
 
             # ── Carte résultat principale ─────────────────────────────────────────────
             if accepted:
-                st.success("✅ Tender accepté")
+                st.success("✅ Tender accepted")
             else:
-                st.error("❌ Tender rejeté")
+                st.error("❌ Tender rejected")
 
             # ── Gauge de confiance ────────────────────────────────────────────────────
-            st.markdown(f"### Confiance : {confidence:.0%}")
+            st.markdown(f"### Confidence : {confidence:.0%}")
             st.progress(confidence)
 
             # ── Détail coloré selon le seuil ──────────────────────────────────────────
             if confidence >= 0.75:
-                st.info("🟢 Signal fort — le modèle est très confiant.")
+                st.info("🟢 Strong signal")
             elif confidence >= 0.55:
-                st.warning("🟡 Signal modéré — à analyser avec précaution.")
+                st.warning("🟡 Moderate signal ")
             else:
-                st.error("🔴 Signal faible — résultat incertain.")
+                st.error("🔴 Weak signal")
 
             # ── Récapitulatif des inputs clés ─────────────────────────────────────────
-            with st.expander("📋 Détail de la requête"):
+            with st.expander("📋 Request details"):
                 col_a, col_b = st.columns(2)
                 with col_a:
                     st.metric("Pays",     result["input"]["ISO_COUNTRY_CODE"])
@@ -142,8 +142,8 @@ if st.button("🚀 Prédire", type="primary"):
                     st.metric("Activité", result["input"]["MAIN_ACTIVITY"])                         # affiche la réponse complète
 
         except requests.exceptions.Timeout:
-            st.error("⏱️ Timeout — l'API ne répond pas.")
+            st.error("⏱️ Timeout — the API is not responding.")
         except requests.exceptions.HTTPError as e:
-            st.error(f"❌ Erreur HTTP {e.response.status_code} : {e.response.text}")
+            st.error(f"❌ HTTP Error {e.response.status_code} : {e.response.text}")
         except Exception as e:
-            st.error(f"❌ Erreur : {e}")
+            st.error(f"❌ Error : {e}")
