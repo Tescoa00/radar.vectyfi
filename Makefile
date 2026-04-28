@@ -13,5 +13,3 @@ local:
 
 app:
 	open https://radarvectyfi-tenderpredicter.streamlit.app/
-
-test local:
