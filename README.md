@@ -177,3 +177,89 @@ curl -X POST http://localhost:8000/predict \
 - The API input expects **raw TED values** (e.g. `"Y"`/`"N"` for binary flags). The pipeline handles encoding internally.
 - Copy `model_test.pkl` to your server alongside the API code. No other data files needed.
 - For production, consider using `joblib` instead of `pickle` for slightly faster serialization.
+
+---
+
+## 🐳 Step 5 — FastAPI Endpoints
+
+**File:** `vectyfi_src/api/fast.py`
+
+The API exposes the following endpoints:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/` | GET | Health check |
+| `/predict` | POST | Accept a `TenderInput` JSON → return `accepted` + `confidence` |
+| `/explain` | POST | Same as `/predict` + SHAP feature importances |
+| `/dummy/predict` | GET | Random inputs → prediction (for testing) |
+
+Run locally:
+```bash
+uvicorn vectyfi_src.api.fast:app --host 0.0.0.0 --port 8000 --reload
+
+# Test with a random payload:
+curl http://localhost:8000/dummy/predict
+```
+
+The API is deployed to Google Cloud Run at:
+`https://vectyfi-api-828368828432.europe-west1.run.app`
+
+---
+
+## 🐳 Step 6 — Docker & GCP Deployment
+
+**File:** `Dockerfile`
+
+The `Dockerfile` packages the FastAPI server and `model_main.pkl` into a single container image.
+
+```bash
+# Build the image locally
+docker build -t vectyfi-api .
+
+# Run locally to verify before deploying
+docker run -p 8000:8000 vectyfi-api
+
+# Or spin up all services via docker-compose
+docker compose up
+```
+
+Deploy to **Google Cloud Run**:
+```bash
+gcloud run deploy vectyfi-api \
+  --image europe-west1-docker.pkg.dev/[PROJECT_ID]/[REPO]/[IMAGE]:[TAG] \
+  --region europe-west1 \
+  --platform managed \
+  --allow-unauthenticated
+```
+
+**Why Cloud Run?**
+- Scales to zero when idle (zero cost at rest)
+- Autoscales on demand with no infrastructure to manage
+- Serves the container over HTTPS automatically
+
+---
+
+## 🖥️ Step 7 — Streamlit Frontend
+
+**File:** `vectyfi_src/frontend/app.py`
+**Live app:** https://radarvectyfi-tenderpredicter.streamlit.app/
+
+The Streamlit app is a thin UI shell that:
+1. Renders a form with all 14 input fields (binary selectors, number inputs, dropdowns)
+2. Sends a POST request to the deployed FastAPI endpoint
+3. Displays the prediction result, confidence gauge, and a signal-strength indicator
+
+| Feature | Reason |
+|---|---|
+| **"Generate Random Data" button** | Lets users explore the model without filling 14 fields manually |
+| **`st.session_state`** | Preserves form values between re-renders (Streamlit reruns on every interaction) |
+| **Confidence gauge (`st.progress`)** | More intuitive than a raw probability for non-technical users |
+| **Signal strength thresholds** | 🟢 ≥ 75%, 🟡 55–74%, 🔴 < 55% — calibrated to procurement risk tolerance |
+
+Run locally:
+```bash
+pip install -r requirements-frontend.txt
+streamlit run vectyfi_src/frontend/app.py
+```
+
+By default the app points to the production Cloud Run API. To use a local API instead, change `API_URL` in `app.py` to `http://localhost:8000/predict`.
